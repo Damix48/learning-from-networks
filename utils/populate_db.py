@@ -35,10 +35,12 @@ def populate_db(years: List[Tuple[datetime.datetime, datetime.datetime, str]], r
                          [to_date] * len(pages)
                          )
 
-    movies_id = [movie[0] for movie in db.get_movies()]
+    for from_date, to_date, _ in years:
+        movies_id = [movie[0] for movie in db.get_movies(
+            start_date=from_date, end_date=to_date)]
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        executor.map(populate_actors, movies_id)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            executor.map(populate_actors, movies_id)
 
 
 def populate_movies(page: int = 1, genres: List[int] = None, from_date: Union[datetime.datetime, str] = None, to_date: Union[datetime.datetime, str] = None):
@@ -69,5 +71,3 @@ def populate_actors(movie_id: int):
     db.insert_movie_actor(movie_actor)
 
     db.insert_movie_actor_collaboration(movie_actor_collaboration)
-
-    db.insert_actor_collaboration(actor_collaboration)
