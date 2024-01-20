@@ -21,7 +21,7 @@ db_connections = pool.ThreadedConnectionPool(
     port=db_port,
     dbname=db_name,
     user=db_user,
-    password=db_password
+    password=db_password,
 )
 
 sql_create_movies = """
@@ -75,11 +75,7 @@ def reset_db():
 
 def create_db():
     conn = psycopg2.connect(
-        dbname=db_name,
-        user=db_user,
-        password=db_password,
-        host=db_host,
-        port=db_port
+        dbname=db_name, user=db_user, password=db_password, host=db_host, port=db_port
     )
     cur = conn.cursor()
 
@@ -96,11 +92,7 @@ def create_db():
 
 def delete_db():
     conn = psycopg2.connect(
-        dbname=db_name,
-        user=db_user,
-        password=db_password,
-        host=db_host,
-        port=db_port
+        dbname=db_name, user=db_user, password=db_password, host=db_host, port=db_port
     )
     cur = conn.cursor()
 
@@ -136,7 +128,8 @@ def insert_actors(actors: List[Tuple[int, str, float]]):
     cur = conn.cursor()
 
     cur.executemany(
-        "INSERT INTO actors VALUES (%s, %s, %s) ON CONFLICT (id) DO NOTHING", actors)
+        "INSERT INTO actors VALUES (%s, %s, %s) ON CONFLICT (id) DO NOTHING", actors
+    )
 
     conn.commit()
 
@@ -165,7 +158,8 @@ def insert_movie_actor_collaboration(actor_collaboration: List[Tuple[int, int, i
     cur = conn.cursor()
 
     cur.executemany(
-        "INSERT INTO movie_actor_collaboration VALUES (%s, %s, %s)", actor_collaboration)
+        "INSERT INTO movie_actor_collaboration VALUES (%s, %s, %s)", actor_collaboration
+    )
 
     conn.commit()
 
@@ -173,7 +167,10 @@ def insert_movie_actor_collaboration(actor_collaboration: List[Tuple[int, int, i
     db_connections.putconn(conn)
 
 
-def get_movies(start_date:  Union[datetime.datetime, str] = datetime.date.min, end_date:  Union[datetime.datetime, str] = datetime.date.max):
+def get_movies(
+    start_date: Union[datetime.datetime, str] = datetime.date.min,
+    end_date: Union[datetime.datetime, str] = datetime.date.max,
+):
     conn = db_connections.getconn()
     cur = conn.cursor()
 
@@ -221,7 +218,10 @@ def get_movie_actor():
     return movie_actor
 
 
-def get_movie_actor_collaboration(start_date:  Union[datetime.datetime, str] = datetime.date.min, end_date:  Union[datetime.datetime, str] = datetime.date.max):
+def get_movie_actor_collaboration(
+    start_date: Union[datetime.datetime, str] = datetime.date.min,
+    end_date: Union[datetime.datetime, str] = datetime.date.max,
+):
     conn = db_connections.getconn()
     cur = conn.cursor()
 
@@ -229,13 +229,19 @@ def get_movie_actor_collaboration(start_date:  Union[datetime.datetime, str] = d
     SELECT mac.*
     FROM movie_actor_collaboration AS mac
     JOIN movies AS m ON mac.movie_id = m.id
-    WHERE m.release_date BETWEEN %s AND %s;
+    JOIN actors AS a1 ON mac.actor_1_id = a1.id
+    JOIN actors AS a2 ON mac.actor_2_id = a2.id
+    WHERE m.release_date BETWEEN %s AND %s AND a1.popularity > 0.600001 AND a2.popularity > 0.600001;
     """
 
-    start_date = (isinstance(start_date, datetime.datetime)
-                  and start_date.isoformat() or start_date)
-    end_date = (isinstance(end_date, datetime.datetime)
-                and end_date.isoformat() or end_date)
+    start_date = (
+        isinstance(start_date, datetime.datetime)
+        and start_date.isoformat()
+        or start_date
+    )
+    end_date = (
+        isinstance(end_date, datetime.datetime) and end_date.isoformat() or end_date
+    )
 
     cur.execute(query, (start_date, end_date))
 

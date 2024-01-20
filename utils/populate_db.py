@@ -12,7 +12,9 @@ load_dotenv()
 max_workers = int(os.getenv("MAX_WORKERS")) | 30
 
 
-def populate_db(years: List[Tuple[datetime.datetime, datetime.datetime, str]], reset=False):
+def populate_db(
+    years: List[Tuple[datetime.datetime, datetime.datetime, str]], reset=False
+):
     if reset:
         db.reset_db()
 
@@ -20,30 +22,35 @@ def populate_db(years: List[Tuple[datetime.datetime, datetime.datetime, str]], r
 
     for from_date, to_date, _ in years:
         total_pages = api.get_movies_page_count(
-            genres=genres,
-            from_date=from_date,
-            to_date=to_date
+            genres=genres, from_date=from_date, to_date=to_date
         )
 
-        pages = range(1, total_pages+1)
+        pages = range(1, total_pages + 1)
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-            executor.map(populate_movies,
-                         pages,
-                         [genres] * len(pages),
-                         [from_date] * len(pages),
-                         [to_date] * len(pages)
-                         )
+            executor.map(
+                populate_movies,
+                pages,
+                [genres] * len(pages),
+                [from_date] * len(pages),
+                [to_date] * len(pages),
+            )
 
     for from_date, to_date, _ in years:
-        movies_id = [movie[0] for movie in db.get_movies(
-            start_date=from_date, end_date=to_date)]
+        movies_id = [
+            movie[0] for movie in db.get_movies(start_date=from_date, end_date=to_date)
+        ]
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
             executor.map(populate_actors, movies_id)
 
 
-def populate_movies(page: int = 1, genres: List[int] = None, from_date: Union[datetime.datetime, str] = None, to_date: Union[datetime.datetime, str] = None):
+def populate_movies(
+    page: int = 1,
+    genres: List[int] = None,
+    from_date: Union[datetime.datetime, str] = None,
+    to_date: Union[datetime.datetime, str] = None,
+):
     movies = api.get_movies(page, genres, from_date, to_date)
 
     db.insert_movies(movies)
@@ -57,13 +64,12 @@ def populate_actors(movie_id: int):
 
     movie_actor_collaboration = []
     for i in range(len(actors)):
-        for j in range(i+1, len(actors)):
-            movie_actor_collaboration.append(
-                (movie_id, actors[i][0], actors[j][0]))
+        for j in range(i + 1, len(actors)):
+            movie_actor_collaboration.append((movie_id, actors[i][0], actors[j][0]))
 
     actor_collaboration = []
     for i in range(len(actors)):
-        for j in range(i+1, len(actors)):
+        for j in range(i + 1, len(actors)):
             actor_collaboration.append(sorted((actors[i][0], actors[j][0])))
 
     db.insert_actors(actors)
