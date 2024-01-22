@@ -1,79 +1,59 @@
-import datetime
-import os
 import requests
-from typing import List, Union
-from dotenv import load_dotenv
-
-load_dotenv()
-
-api_key = os.getenv("API_KEY")
-base_url = "https://api.themoviedb.org/3"
-
-headers = {"accept": "application/json", "Authorization": f"Bearer {api_key}"}
 
 
-def create_params(
-    page: int = 1,
-    genres: List[int] = None,
-    from_date: Union[datetime.datetime, str] = None,
-    to_date: Union[datetime.datetime, str] = None,
-):
-    return {
-        "include_adult": False,
-        "include_video": False,
-        "language": "en-US",
-        "page": page,
-        "primary_release_date.gte": isinstance(from_date, datetime.datetime)
-        and from_date.isoformat()
-        or from_date,
-        "primary_release_date.lte": isinstance(to_date, datetime.datetime)
-        and to_date.isoformat()
-        or to_date,
-        "sort_by": "primary_release_date.asc",
-        "with_genres": genres,
-        "without_genres": "16 | 99 | 10770",
-        "with_origin_country": "US",
-    }
+class WikipediaApi:
+    def __init__(self) -> None:
+        self.base_url = "https://en.wikipedia.org/w/api.php"
+
+    def get_category_members(
+        self, category: str, limit: int = 500, cmcontinue: str = None
+    ):
+        params = {
+            "action": "query",
+            "format": "json",
+            "list": "categorymembers",
+            "formatversion": 2,
+            "cmtitle": category,
+            "cmlimit": limit,
+            "cmcontinue": cmcontinue,
+        }
+
+        r = requests.get(self.base_url, params=params).json()
+
+        return (
+            r["query"]["categorymembers"],
+            r["continue"]["cmcontinue"] if "continue" in r else None,
+        )
+
+    def get_all_category_members(self, category: str, limit: int = 500):
+        cmcontinue = None
+        all_pages = []
+
+        while True:
+            pages, cmcontinue = self.get_category_members(category, limit, cmcontinue)
+            all_pages.extend(pages)
+
+            if cmcontinue is None:
+                break
+
+        return all_pages
 
 
-def get_movies_page_count(
-    genres: List[int] = None,
-    from_date: Union[datetime.datetime, str] = None,
-    to_date: Union[datetime.datetime, str] = None,
-):
-    return requests.get(
-        f"{base_url}/discover/movie",
-        headers=headers,
-        params=create_params(1, genres, from_date, to_date),
-    ).json()["total_pages"]
+class TMDBApi:
+    def __init__(self, api_key: str) -> None:
+        self.api_key = api_key
+        self.base_url = "https://api.themoviedb.org/3"
+        self.headers = {
+            "accept": "application/json",
+            "Authorization": f"Bearer {self.api_key}",
+        }
 
+    def get_movie_details(self, movie_id: int):
+        params = {
+            "language": "en-US",
+            "append_to_response": "credits,keywords",
+        }
 
-def get_movies(
-    page: int = 1,
-    genres: List[int] = None,
-    from_date: Union[datetime.datetime, str] = None,
-    to_date: Union[datetime.datetime, str] = None,
-):
-    results = requests.get(
-        f"{base_url}/discover/movie",
-        headers=headers,
-        params=create_params(page, genres, from_date, to_date),
-    ).json()["results"]
-
-    movies = [(movie["id"], movie["title"], movie["release_date"]) for movie in results]
-
-    return movies
-
-
-def get_actors(movie_id: int):
-    results = requests.get(
-        f"{base_url}/movie/{movie_id}/credits", headers=headers
-    ).json()["cast"]
-
-    actors = [
-        (actor["id"], actor["name"], actor["popularity"])
-        for actor in results
-        if actor["known_for_department"] == "Acting" and actor["adult"] == False
-    ]
-
-    return actors
+        return requests.get(
+            f"{self.base_url}/movie/{movie_id}", headers=self.headers, params=params
+        ).json()
