@@ -221,17 +221,27 @@ def get_movie_actor():
 def get_movie_actor_collaboration(
     start_date: Union[datetime.datetime, str] = datetime.date.min,
     end_date: Union[datetime.datetime, str] = datetime.date.max,
+    min_popularity: float = 0.6,
+    epsilon: float = 0.0001,
 ):
     conn = db_connections.getconn()
     cur = conn.cursor()
 
     query = """
-    SELECT mac.*
-    FROM movie_actor_collaboration AS mac
-    JOIN movies AS m ON mac.movie_id = m.id
-    JOIN actors AS a1 ON mac.actor_1_id = a1.id
-    JOIN actors AS a2 ON mac.actor_2_id = a2.id
-    WHERE m.release_date BETWEEN %s AND %s AND a1.popularity > 0.600001 AND a2.popularity > 0.600001;
+    SELECT
+        mac.*
+    FROM
+        movie_actor_collaboration AS mac
+    JOIN
+        movies AS m ON mac.movie_id = m.id
+    JOIN
+        actors AS a1 ON mac.actor_1_id = a1.id
+    JOIN
+        actors AS a2 ON mac.actor_2_id = a2.id
+    WHERE
+        m.release_date BETWEEN %s AND %s
+        AND a1.popularity > %s
+        AND a2.popularity > %s;
     """
 
     start_date = (
@@ -243,7 +253,10 @@ def get_movie_actor_collaboration(
         isinstance(end_date, datetime.datetime) and end_date.isoformat() or end_date
     )
 
-    cur.execute(query, (start_date, end_date))
+    cur.execute(
+        query,
+        (start_date, end_date, min_popularity + epsilon, min_popularity + epsilon),
+    )
 
     movie_actor_collaboration = cur.fetchall()
 
@@ -251,3 +264,53 @@ def get_movie_actor_collaboration(
     db_connections.putconn(conn)
 
     return movie_actor_collaboration
+
+
+def get_actors_movies(
+    start_date: Union[datetime.datetime, str] = datetime.date.min,
+    end_date: Union[datetime.datetime, str] = datetime.date.max,
+    min_popularity: float = 0.6,
+    epsilon: float = 0.0001,
+):
+    conn = db_connections.getconn()
+    cur = conn.cursor()
+
+    query = """
+    SELECT
+        a.id AS actor_id,
+        a.name AS actor_name,
+        a.popularity AS actor_popularity,
+        COUNT(ma.movie_id) AS movie_count
+    FROM
+        actors AS a
+    JOIN
+        movie_actor AS ma ON a.id = ma.actor_id
+    JOIN
+        movies AS m ON ma.movie_id = m.id
+    WHERE
+        m.release_date BETWEEN %s AND %s
+        AND a.popularity > %s
+    GROUP BY
+        a.id, a.name, a.popularity;
+    """
+
+    start_date = (
+        isinstance(start_date, datetime.datetime)
+        and start_date.isoformat()
+        or start_date
+    )
+    end_date = (
+        isinstance(end_date, datetime.datetime) and end_date.isoformat() or end_date
+    )
+
+    cur.execute(
+        query,
+        (start_date, end_date, min_popularity + epsilon),
+    )
+
+    actors_movies = cur.fetchall()
+
+    cur.close()
+    db_connections.putconn(conn)
+
+    return actors_movies

@@ -3,6 +3,7 @@ import populate_db
 import create_dataset
 import re
 import datetime
+import os
 
 # Initialize parser
 parser = argparse.ArgumentParser()
@@ -22,6 +23,9 @@ dataset_parser = subparsers.add_parser("dataset")
 dataset_parser.add_argument("-y", "--years", help="Enter year(s)")
 dataset_parser.add_argument("-p", "--path", help="Enter dataset(s) path")
 dataset_parser.add_argument("-n", "--name", help="Enter dataset(s) name")
+dataset_parser.add_argument(
+    "-a", "--actors", help="Create actors dataset", action="store_true"
+)
 
 # Read arguments from command line
 args = parser.parse_args()
@@ -61,12 +65,20 @@ if __name__ == "__main__":
         else:
             print("Please enter years")
     elif args.command == "dataset":
-        path = args.path if args.path is not None else "./"
-        name = args.name if args.name is not None else "dataset"
+        path = args.path if args.path is not None else "./datasets"
+
+        if os.path.exists(path) == False:
+            os.makedirs(path)
+
         years = (
             parse_year(args.years)
             if args.years is not None
             else [(datetime.date.min, datetime.date.max, "all")]
         )
 
-        create_dataset.create_dataset(path, name, years)
+        if args.actors:
+            name = args.name if args.name is not None else "actors"
+            create_dataset.create_actors_dataset(path, name, years)
+        else:
+            name = args.name if args.name is not None else "collaborations"
+            create_dataset.create_collaborations_dataset(path, name, years)
