@@ -29,7 +29,14 @@ sql_create_movies = """
 CREATE TABLE movies (
     id INTEGER PRIMARY KEY,
     title TEXT,
-    release_date DATE
+    release_date DATE,
+    budget INTEGER,
+    revenue INTEGER,
+    vote_average REAL,
+    vote_count INTEGER,
+    popularity REAL,
+    genres INTEGER[],
+    keywords INTEGER[]
 );
 """
 
@@ -38,7 +45,28 @@ sql_create_actors = """
 CREATE TABLE actors (
     id INTEGER PRIMARY KEY,
     name TEXT,
-    popularity REAL
+    popularity REAL,
+    biography TEXT
+);
+"""
+
+sql_create_directors = """
+-- Create the "directors" table
+CREATE TABLE directors (
+    id INTEGER PRIMARY KEY,
+    name TEXT,
+    popularity REAL,
+    biography TEXT
+);
+"""
+
+sql_create_writers = """
+-- Create the "writers" table
+CREATE TABLE writers (
+    id INTEGER PRIMARY KEY,
+    name TEXT,
+    popularity REAL,
+    biography TEXT
 );
 """
 
@@ -53,22 +81,100 @@ CREATE TABLE movie_actor (
 );
 """
 
-sql_create_movie_actor_collaboration = """
--- Create the "movie_actor_collaboration" table to represent the many-to-many relationship between movies and actors
-CREATE TABLE movie_actor_collaboration (
+sql_create_movie_director = """
+-- Create the "movie_director" table to represent the many-to-many relationship between movies and directors
+CREATE TABLE movie_director (
     movie_id INTEGER,
+    director_id INTEGER,
+    FOREIGN KEY (movie_id) REFERENCES movies(id),
+    FOREIGN KEY (director_id) REFERENCES directors(id),
+    PRIMARY KEY (movie_id, director_id)
+);
+"""
+
+sql_create_movie_writer = """
+-- Create the "movie_writer" table to represent the many-to-many relationship between movies and writers
+CREATE TABLE movie_writer (
+    movie_id INTEGER,
+    writer_id INTEGER,
+    FOREIGN KEY (movie_id) REFERENCES movies(id),
+    FOREIGN KEY (writer_id) REFERENCES writers(id),
+    PRIMARY KEY (movie_id, writer_id)
+);
+"""
+
+sql_create_actor_actor = """
+-- Create the "actor_actor" table to represent the many-to-many relationship between movies and actors
+CREATE TABLE actor_actor (
     actor_1_id INTEGER,
     actor_2_id INTEGER,
-    FOREIGN KEY (movie_id) REFERENCES movies(id),
     FOREIGN KEY (actor_1_id) REFERENCES actors(id),
     FOREIGN KEY (actor_2_id) REFERENCES actors(id),
-    PRIMARY KEY (movie_id, actor_1_id, actor_2_id)
+    PRIMARY KEY (actor_1_id, actor_2_id)
+);
+"""
+
+sql_create_actor_director = """
+-- Create the "actor_director" table to represent the many-to-many relationship between movies and actors
+CREATE TABLE actor_director (
+    actor_1_id INTEGER,
+    director_2_id INTEGER,
+    FOREIGN KEY (actor_1_id) REFERENCES actors(id),
+    FOREIGN KEY (director_2_id) REFERENCES directors(id),
+    PRIMARY KEY (actor_1_id, director_2_id)
+);
+"""
+
+sql_create_actor_writer = """
+-- Create the "actor_writer" table to represent the many-to-many relationship between movies and actors
+CREATE TABLE actor_writer (
+    actor_1_id INTEGER,
+    writer_2_id INTEGER,
+    FOREIGN KEY (actor_1_id) REFERENCES actors(id),
+    FOREIGN KEY (writer_2_id) REFERENCES writers(id),
+    PRIMARY KEY (actor_1_id, writer_2_id)
+);
+"""
+
+sql_create_director_director = """
+-- Create the "director_director" table to represent the many-to-many relationship between movies and actors
+CREATE TABLE director_director (
+    director_1_id INTEGER,
+    director_2_id INTEGER,
+    FOREIGN KEY (director_1_id) REFERENCES directors(id),
+    FOREIGN KEY (director_2_id) REFERENCES directors(id),
+    PRIMARY KEY (director_1_id, director_2_id)
+);
+"""
+
+sql_create_director_writer = """
+-- Create the "director_writer" table to represent the many-to-many relationship between movies and actors
+CREATE TABLE director_writer (
+    director_1_id INTEGER,
+    writer_2_id INTEGER,
+    FOREIGN KEY (director_1_id) REFERENCES directors(id),
+    FOREIGN KEY (writer_2_id) REFERENCES writers(id),
+    PRIMARY KEY (director_1_id, writer_2_id)
+);
+"""
+
+sql_create_writer_writer = """
+-- Create the "writer_writer" table to represent the many-to-many relationship between movies and actors
+CREATE TABLE writer_writer (
+    writer_1_id INTEGER,
+    writer_2_id INTEGER,
+    FOREIGN KEY (writer_1_id) REFERENCES writers(id),
+    FOREIGN KEY (writer_2_id) REFERENCES writers(id),
+    PRIMARY KEY (writer_1_id, writer_2_id)
 );
 """
 
 
 def reset_db():
-    delete_db()
+    try:
+        delete_db()
+    except psycopg2.errors.UndefinedTable:
+        pass
 
     create_db()
 
@@ -81,8 +187,17 @@ def create_db():
 
     cur.execute(sql_create_movies)
     cur.execute(sql_create_actors)
+    cur.execute(sql_create_directors)
+    cur.execute(sql_create_writers)
     cur.execute(sql_create_movie_actor)
-    cur.execute(sql_create_movie_actor_collaboration)
+    cur.execute(sql_create_movie_director)
+    cur.execute(sql_create_movie_writer)
+    cur.execute(sql_create_actor_actor)
+    cur.execute(sql_create_actor_director)
+    cur.execute(sql_create_actor_writer)
+    cur.execute(sql_create_director_director)
+    cur.execute(sql_create_director_writer)
+    cur.execute(sql_create_writer_writer)
 
     conn.commit()
 
@@ -96,8 +211,17 @@ def delete_db():
     )
     cur = conn.cursor()
 
-    cur.execute("DROP TABLE movie_actor_collaboration")
+    cur.execute("DROP TABLE actor_writer")
+    cur.execute("DROP TABLE actor_director")
+    cur.execute("DROP TABLE actor_actor")
+    cur.execute("DROP TABLE writer_writer")
+    cur.execute("DROP TABLE director_writer")
+    cur.execute("DROP TABLE director_director")
+    cur.execute("DROP TABLE movie_writer")
+    cur.execute("DROP TABLE movie_director")
     cur.execute("DROP TABLE movie_actor")
+    cur.execute("DROP TABLE writers")
+    cur.execute("DROP TABLE directors")
     cur.execute("DROP TABLE movies")
     cur.execute("DROP TABLE actors")
 
@@ -107,28 +231,12 @@ def delete_db():
     conn.close()
 
 
-def insert_movies(movies: List[Tuple[int, str]]):
-    print(f"Inserting {len(movies)} movies")
-
+def create_movie(movie_id: int):
     conn = db_connections.getconn()
     cur = conn.cursor()
 
-    cur.executemany("INSERT INTO movies VALUES (%s, %s, %s)", movies)
-
-    conn.commit()
-
-    cur.close()
-    db_connections.putconn(conn)
-
-
-def insert_actors(actors: List[Tuple[int, str, float]]):
-    print(f"Inserting {len(actors)} actors")
-
-    conn = db_connections.getconn()
-    cur = conn.cursor()
-
-    cur.executemany(
-        "INSERT INTO actors VALUES (%s, %s, %s) ON CONFLICT (id) DO NOTHING", actors
+    cur.execute(
+        "INSERT INTO movies VALUES (%s) ON CONFLICT (id) DO NOTHING", (movie_id,)
     )
 
     conn.commit()
@@ -137,50 +245,158 @@ def insert_actors(actors: List[Tuple[int, str, float]]):
     db_connections.putconn(conn)
 
 
-def insert_movie_actor(movie_actor: List[Tuple[int, int]]):
-    print(f"Inserting {len(movie_actor)} movie_actor")
-
-    conn = db_connections.getconn()
-    cur = conn.cursor()
-
-    cur.executemany("INSERT INTO movie_actor VALUES (%s, %s)", movie_actor)
-
-    conn.commit()
-
-    cur.close()
-    db_connections.putconn(conn)
-
-
-def insert_movie_actor_collaboration(actor_collaboration: List[Tuple[int, int, int]]):
-    print(f"Inserting {len(actor_collaboration)} movie_actor_collaboration")
-
-    conn = db_connections.getconn()
-    cur = conn.cursor()
-
-    cur.executemany(
-        "INSERT INTO movie_actor_collaboration VALUES (%s, %s, %s)", actor_collaboration
-    )
-
-    conn.commit()
-
-    cur.close()
-    db_connections.putconn(conn)
-
-
-def get_movies(
-    start_date: Union[datetime.datetime, str] = datetime.date.min,
-    end_date: Union[datetime.datetime, str] = datetime.date.max,
+def update_movie(
+    movie_id: int,
+    title: str,
+    release_date: datetime.date,
+    budget: int,
+    revenue: int,
+    vote_average: float,
+    vote_count: int,
+    popularity: float,
+    genres: List[int],
+    keywords: List[int],
 ):
     conn = db_connections.getconn()
     cur = conn.cursor()
 
-    query = """
-    SELECT *
-    FROM movies
-    WHERE release_date BETWEEN %s AND %s;
+    sql_update_movie = """
+    UPDATE
+        movies
+    SET
+        title = %s,
+        release_date = %s,
+        budget = %s,
+        revenue = %s,
+        vote_average = %s,
+        vote_count = %s,
+        popularity = %s,
+        genres = %s,
+        keywords = %s
+    WHERE
+        id = %s;
     """
 
-    cur.execute(query, (start_date, end_date))
+    cur.execute(
+        sql_update_movie,
+        (
+            title,
+            release_date,
+            budget,
+            revenue,
+            vote_average,
+            vote_count,
+            popularity,
+            genres,
+            keywords,
+            movie_id,
+        ),
+    )
+
+    conn.commit()
+
+    cur.close()
+    db_connections.putconn(conn)
+
+
+def insert_people(actors: List[Tuple[int, str, float, str]], people_type: str):
+    print(f"Inserting {len(actors)} {people_type}")
+
+    conn = db_connections.getconn()
+    cur = conn.cursor()
+
+    cur.executemany(
+        f"INSERT INTO {people_type} VALUES (%s, %s, %s, %s) ON CONFLICT (id) DO NOTHING",
+        actors,
+    )
+
+    conn.commit()
+
+    cur.close()
+    db_connections.putconn(conn)
+
+
+def update_people(
+    people_id,
+    people_type: str,
+    people_name=None,
+    people_popularity=None,
+    people_biography=None,
+):
+    conn = db_connections.getconn()
+    cur = conn.cursor()
+
+    sql_update_people = f"""
+    UPDATE
+        {people_type}
+    SET
+        name = COALESCE(%s, name),
+        popularity = COALESCE(%s, popularity),
+        biography = COALESCE(%s, biography)
+    WHERE
+        id = %s;
+    """
+
+    cur.execute(
+        sql_update_people,
+        (
+            people_name,
+            people_popularity,
+            people_biography,
+            people_id,
+        ),
+    )
+
+    conn.commit()
+
+    cur.close()
+    db_connections.putconn(conn)
+
+
+def insert_movie_people(movie_actor: List[Tuple[int, int]], people_type: str):
+    print(f"Inserting {len(movie_actor)} movie_{people_type}")
+
+    conn = db_connections.getconn()
+    cur = conn.cursor()
+
+    cur.executemany(f"INSERT INTO movie_{people_type} VALUES (%s, %s)", movie_actor)
+
+    conn.commit()
+
+    cur.close()
+    db_connections.putconn(conn)
+
+
+def insert_people_connections(
+    people_connections: List[Tuple[int, int]], people_type: List[str]
+):
+    conn = db_connections.getconn()
+    cur = conn.cursor()
+
+    sql_people_connections = f"""
+    INSERT INTO
+        {people_type[0]}_{people_type[1]}
+    VALUES
+        (%s, %s)
+    ON CONFLICT ({people_type[0]}_1_id, {people_type[1]}_2_id) DO NOTHING;
+    """
+
+    cur.executemany(
+        sql_people_connections,
+        people_connections,
+    )
+
+    conn.commit()
+
+    cur.close()
+    db_connections.putconn(conn)
+
+
+def get_movies_ids():
+    conn = db_connections.getconn()
+    cur = conn.cursor()
+
+    cur.execute("SELECT id FROM movies;")
 
     movies = cur.fetchall()
 
@@ -190,127 +406,50 @@ def get_movies(
     return movies
 
 
-def get_actors():
+def get_people_ids(people_type: str):
     conn = db_connections.getconn()
     cur = conn.cursor()
 
-    cur.execute("SELECT * FROM actors")
+    cur.execute(f"SELECT id FROM {people_type};")
 
-    actors = cur.fetchall()
+    people = cur.fetchall()
 
     cur.close()
     db_connections.putconn(conn)
 
-    return actors
+    return people
 
 
-def get_movie_actor():
+def get_people(people_type: str):
     conn = db_connections.getconn()
     cur = conn.cursor()
 
-    cur.execute("SELECT * FROM movie_actor")
+    cur.execute(f"SELECT * FROM {people_type};")
 
-    movie_actor = cur.fetchall()
+    people = cur.fetchall()
 
     cur.close()
     db_connections.putconn(conn)
 
-    return movie_actor
+    return people
 
 
-def get_movie_actor_collaboration(
-    start_date: Union[datetime.datetime, str] = datetime.date.min,
-    end_date: Union[datetime.datetime, str] = datetime.date.max,
-    min_popularity: float = 0.6,
-    epsilon: float = 0.0001,
-):
+def search_people(people_type: str, people_names: List[str]):
     conn = db_connections.getconn()
     cur = conn.cursor()
 
-    query = """
+    sql_search_people = f"""
     SELECT
-        mac.*
+        id
     FROM
-        movie_actor_collaboration AS mac
-    JOIN
-        movies AS m ON mac.movie_id = m.id
-    JOIN
-        actors AS a1 ON mac.actor_1_id = a1.id
-    JOIN
-        actors AS a2 ON mac.actor_2_id = a2.id
+        {people_type}
     WHERE
-        m.release_date BETWEEN %s AND %s
-        AND a1.popularity > %s
-        AND a2.popularity > %s;
+        name IN %s;
     """
 
-    start_date = (
-        isinstance(start_date, datetime.datetime)
-        and start_date.isoformat()
-        or start_date
-    )
-    end_date = (
-        isinstance(end_date, datetime.datetime) and end_date.isoformat() or end_date
-    )
+    cur.execute(sql_search_people, (tuple(people_names),))
 
-    cur.execute(
-        query,
-        (start_date, end_date, min_popularity + epsilon, min_popularity + epsilon),
-    )
-
-    movie_actor_collaboration = cur.fetchall()
-
-    cur.close()
+    people = cur.fetchall()
     db_connections.putconn(conn)
 
-    return movie_actor_collaboration
-
-
-def get_actors_movies(
-    start_date: Union[datetime.datetime, str] = datetime.date.min,
-    end_date: Union[datetime.datetime, str] = datetime.date.max,
-    min_popularity: float = 0.6,
-    epsilon: float = 0.0001,
-):
-    conn = db_connections.getconn()
-    cur = conn.cursor()
-
-    query = """
-    SELECT
-        a.id AS actor_id,
-        a.name AS actor_name,
-        a.popularity AS actor_popularity,
-        COUNT(ma.movie_id) AS movie_count
-    FROM
-        actors AS a
-    JOIN
-        movie_actor AS ma ON a.id = ma.actor_id
-    JOIN
-        movies AS m ON ma.movie_id = m.id
-    WHERE
-        m.release_date BETWEEN %s AND %s
-        AND a.popularity > %s
-    GROUP BY
-        a.id, a.name, a.popularity;
-    """
-
-    start_date = (
-        isinstance(start_date, datetime.datetime)
-        and start_date.isoformat()
-        or start_date
-    )
-    end_date = (
-        isinstance(end_date, datetime.datetime) and end_date.isoformat() or end_date
-    )
-
-    cur.execute(
-        query,
-        (start_date, end_date, min_popularity + epsilon),
-    )
-
-    actors_movies = cur.fetchall()
-
-    cur.close()
-    db_connections.putconn(conn)
-
-    return actors_movies
+    return people

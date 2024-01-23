@@ -4,6 +4,9 @@ import create_dataset
 import re
 import datetime
 import os
+import dotenv
+
+dotenv.load_dotenv()
 
 # Initialize parser
 parser = argparse.ArgumentParser()
@@ -13,7 +16,6 @@ subparsers = parser.add_subparsers(dest="command")
 
 # Adding db parser
 db_parser = subparsers.add_parser("db")
-db_parser.add_argument("-y", "--years", help="Enter year(s)")
 db_parser.add_argument(
     "-r", "--reset", action="store_true", default=False, help="Reset DB"
 )
@@ -60,25 +62,23 @@ def parse_year(years: str):
 
 if __name__ == "__main__":
     if args.command == "db":
-        if args.years:
-            populate_db.populate_db(parse_year(args.years), args.reset)
-        else:
-            print("Please enter years")
+        api_key = os.getenv("API_KEY")
+        populate_db.populate_db(api_key, args.reset)
     elif args.command == "dataset":
-        path = args.path if args.path is not None else "./datasets"
+        # path = args.path if args.path is not None else "./datasets"
 
-        if os.path.exists(path) == False:
-            os.makedirs(path)
+        # if os.path.exists(path) == False:
+        #     os.makedirs(path)
 
-        years = (
-            parse_year(args.years)
-            if args.years is not None
-            else [(datetime.date.min, datetime.date.max, "all")]
-        )
+        # years = (
+        #     parse_year(args.years)
+        #     if args.years is not None
+        #     else [(datetime.date.min, datetime.date.max, "all")]
+        # )
 
-        if args.actors:
-            name = args.name if args.name is not None else "actors"
-            create_dataset.create_actors_dataset(path, name, years)
-        else:
-            name = args.name if args.name is not None else "collaborations"
-            create_dataset.create_collaborations_dataset(path, name, years)
+        # if args.actors:
+        #     name = args.name if args.name is not None else "actors"
+        #     create_dataset.create_actors_dataset(path, name, years)
+        # else:
+        #     name = args.name if args.name is not None else "collaborations"
+        #     create_dataset.create_collaborations_dataset(path, name, years)
