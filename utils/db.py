@@ -406,6 +406,20 @@ def get_movies_ids():
     return movies
 
 
+def get_movies():
+    conn = db_connections.getconn()
+    cur = conn.cursor()
+
+    cur.execute("SELECT * FROM movies WHERE title IS NOT NULL;")
+
+    movies = cur.fetchall()
+
+    cur.close()
+    db_connections.putconn(conn)
+
+    return movies
+
+
 def get_people_ids(people_type: str):
     conn = db_connections.getconn()
     cur = conn.cursor()
@@ -424,7 +438,43 @@ def get_people(people_type: str):
     conn = db_connections.getconn()
     cur = conn.cursor()
 
-    cur.execute(f"SELECT * FROM {people_type};")
+    cur.execute(f"SELECT id, name, popularity FROM {people_type};")
+
+    people = cur.fetchall()
+
+    cur.close()
+    db_connections.putconn(conn)
+
+    return people
+
+
+def get_movie_people(people_type: str):
+    conn = db_connections.getconn()
+    cur = conn.cursor()
+
+    sql_get_movie_people = f"""
+    SELECT * FROM movie_{people_type};
+    """
+
+    cur.execute(sql_get_movie_people)
+
+    people = cur.fetchall()
+
+    cur.close()
+    db_connections.putconn(conn)
+
+    return people
+
+
+def get_people_connections(people_type: List[str]):
+    conn = db_connections.getconn()
+    cur = conn.cursor()
+
+    sql_get_people_connections = f"""
+    SELECT * FROM {people_type[0]}_{people_type[1]};
+    """
+
+    cur.execute(sql_get_people_connections)
 
     people = cur.fetchall()
 
@@ -453,3 +503,30 @@ def search_people(people_type: str, people_names: List[str]):
     db_connections.putconn(conn)
 
     return people
+
+
+def get_genres():
+    conn = db_connections.getconn()
+    cur = conn.cursor()
+
+    sql_get_genres = """
+    SELECT
+        distinct_element,
+        COUNT(*) AS frequency
+    FROM (
+        SELECT unnest(genres) AS distinct_element
+        FROM movies
+    ) AS unnested_genres
+    GROUP BY distinct_element
+    HAVING COUNT(*) > 1
+    ORDER BY frequency DESC;
+    """
+
+    cur.execute(sql_get_genres)
+
+    genres = cur.fetchall()
+
+    cur.close()
+    db_connections.putconn(conn)
+
+    return genres
