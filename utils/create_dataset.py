@@ -3,15 +3,13 @@ import db
 import pandas as pd
 
 
-def create_movies_dataset(path: str, name: str = "movies.csv"):
+def create_movies_dataset(path: str):
     genres = db.get_genres()
     movies = db.get_movies()
 
     genres_dict = {}
 
     genres_dict = {genre[0]: index for genre, index in zip(genres, range(len(genres)))}
-
-    print(genres_dict)
 
     for i in range(len(movies)):
         movie = movies[i]
@@ -40,7 +38,7 @@ def create_movies_dataset(path: str, name: str = "movies.csv"):
         ],
     )
 
-    movies_df.to_csv(f"{path}/{name}", index=False)
+    movies_df.to_csv(f"{path}/movies.csv", index=False)
 
 
 def create_people_dataset(path: str):
@@ -90,51 +88,3 @@ def create_people_connections_dataset(path: str):
             name = f"{person_types[i]}_{person_types[j]}.csv"
 
             people_df.to_csv(f"{path}/{name}", index=False)
-
-
-create_movies_dataset("dataset")
-create_people_dataset("dataset")
-create_movie_connections_dataset("dataset")
-create_people_connections_dataset("dataset")
-
-# def create_actors_dataset(
-#     path: str, name: str, years: List[Tuple[datetime.datetime, datetime.datetime, str]]
-# ):
-#     for start_date, end_date, part in years:
-#         actors_movies = db.get_actors_movies(
-#             start_date=start_date, end_date=end_date, min_popularity=30
-#         )
-
-#         with open(f"{path}/{name}_{part}.csv", "w", encoding="utf-8") as file:
-#             file.write("id,name,popularity,movie_counter\n")
-#             for (
-#                 actor_id,
-#                 actor_name,
-#                 actor_popularity,
-#                 movie_counter,
-#             ) in actors_movies:
-#                 file.write(
-#                     f'{actor_id},"{actor_name}",{actor_popularity},{movie_counter}\n'
-#                 )
-
-
-# def create_collaborations_dataset(
-#     path: str, name: str, years: List[Tuple[datetime.datetime, datetime.datetime, str]]
-# ):
-#     for start_date, end_date, part in years:
-#         movie_actor_collaboration = db.get_movie_actor_collaboration(
-#             start_date=start_date, end_date=end_date, min_popularity=30
-#         )
-
-#         actors_collaboration = {}
-
-#         for movie_id, actor_id_1, actor_id_2 in movie_actor_collaboration:
-#             if (actor_id_1, actor_id_2) not in actors_collaboration:
-#                 actors_collaboration[actor_id_1, actor_id_2] = 1
-#             else:
-#                 actors_collaboration[actor_id_1, actor_id_2] += 1
-
-#         with open(f"{path}/{name}_{part}.csv", "w", encoding="utf-8") as file:
-#             file.write("actor_1_id,actor_2_id,counter\n")
-#             for (actor_id_1, actor_id_2), counter in actors_collaboration.items():
-#                 file.write(f"{actor_id_1},{actor_id_2},{counter}\n")

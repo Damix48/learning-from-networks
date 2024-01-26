@@ -20,8 +20,9 @@ max_workers = int(os.getenv("MAX_WORKERS")) | 30
 def populate_db(api_key: str, reset=False):
     if reset:
         db.reset_db()
+        create_movie_list()
 
-    movies = pd.read_csv("data/wiki_movies.csv", dtype=str).values.tolist()
+    movies = pd.read_csv("tmp/wiki_movies.csv", dtype=str).values.tolist()
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         executor.map(create_movie, [api_key] * len(movies), movies)
@@ -47,7 +48,10 @@ def populate_db(api_key: str, reset=False):
         executor.map(create_people_connections, writers, ["writer"] * len(writers))
 
 
-def create_movie_list(path: str = "data/wiki_movies.csv"):
+def create_movie_list(path: str = "./tmp/wiki_movies.csv"):
+    if os.path.exists("./tmp") == False:
+        os.makedirs("./tmp")
+
     wikipedia_api = WikipediaApi()
 
     pages = wikipedia_api.get_all_category_members(
