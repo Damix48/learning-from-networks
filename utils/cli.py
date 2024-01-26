@@ -1,8 +1,6 @@
 import argparse
 import populate_db
 import create_dataset
-import re
-import datetime
 import os
 import dotenv
 
